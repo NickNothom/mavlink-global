@@ -4,10 +4,9 @@ from pymavlink import mavutil
 import modules.pyRockBlock3.rockBlock as rockBlock
 from modules.pyRockBlock3.rockBlock import rockBlockProtocol
 
-master = 'udp:0.0.0.0:14551'
+master = 'udpout:0.0.0.0:14551'
 
-#lora_port = '/dev/lora'
-lora_port = 'udpout:0.0.0.0:14771'
+lora_port = '/dev/lora'
 lora_interval = 10  # Seconds
 lora_heartbeat_count = 0
 
@@ -16,7 +15,13 @@ satellite_interval = 600  # Seconds
 satellite_heartbeat_count = 0
 
 vehicle = mavutil.mavlink_connection(master)
-lora = mavutil.mavlink_connection(lora_port)
+lora = mavutil.mavlink_connection(lora_port, baud=115200)
+
+#lora = mavutil.mavlink_connection('/dev/ttyUSB0', baud=115200)
+#vehicle = mavutil.mavlink_connection('/dev/ttyACM0', baud=115200)
+
+
+hl_received = False
 
 class MoExample(rockBlockProtocol):
     def send(self, message):
@@ -52,12 +57,17 @@ wait_conn(vehicle)
 while True:
     try:
         vehicle_message = vehicle.recv_msg()
-        basestation_message = lora.recv_msg()
+        lora_message = lora.recv_msg()
+
+        if not hl_received:
+            #This doesn't actually work
+            vehicle.mav.message_interval_send(235, 100000, 0)
 
         if vehicle_message:
             vehicle_message_dict = vehicle_message.to_dict()
 
             if vehicle_message_dict['mavpackettype'] == 'HIGH_LATENCY2':
+                hl_received = True
                 if lora_heartbeat_count >= lora_interval:
                     try:
                         lora.mav.srcSystem = vehicle.sysid
@@ -79,14 +89,14 @@ while True:
             if vehicle_message_dict['mavpackettype'] == 'HEARTBEAT':
                 lora_heartbeat_count += 1
                 satellite_heartbeat_count = 0
-        if basestation_message:
+        if lora_message:
             vehicle.mav.srcSystem = 201
             vehicle.mav.srcComponent = 1
-            vehicle.mav.send(basestation_message)
-            basestation_message_dict = basestation_message.to_dict()
-            print("BaseStation: ", basestation_message_dict)
+            vehicle.mav.send(lora_message)
+            lora_message_dict = lora_message.to_dict()
+            print("LoRa: ", lora_message_dict)
 
-        if not basestation_message and not vehicle_message:
+        if not lora_message and not vehicle_message:
             # No Messages at this time
             # Wait a little
             time.sleep(0.1)
