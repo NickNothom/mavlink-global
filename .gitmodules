@@ -1,0 +1,7 @@
+[submodule "modules/mavlink"]
+	path = modules/mavlink
+	url = https://github.com/NickNothom/mavlink
+[submodule "modules/pyRockBlock3"]
+	path = modules/pyRockBlock3
+	url = https://github.com/NickNothom/pyRockBlock3
+
